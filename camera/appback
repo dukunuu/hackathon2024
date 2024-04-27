@@ -1,0 +1,167 @@
+import { Camera, CameraType } from "expo-camera";
+import { useEffect, useRef, useState } from "react";
+import {
+    Button,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
+import * as ImageManipulator from "expo-image-manipulator";
+
+export default function App() {
+    const camera = useRef(null);
+    const [type, setType] = useState(CameraType.back);
+    const [permission, requestPermission] = Camera.useCameraPermissions();
+    const [isConnect, setIsConnect] = useState(false);
+    const [socket, setSocket] = useState(null);
+    const [interval, setInterval] = useState(null);
+    // useEffect(() => {
+    //   console.log("Asdasd");
+    // })
+    async function Resize(photo) {
+        const resizedPhoto = await ImageManipulator.manipulateAsync(
+            photo.uri,
+            [{ resize: { width: 300 } }], // resize to width of 300 and preserve aspect ratio
+            { compress: 0.7, format: "jpeg" }
+        );
+        return resizedPhoto;
+    }
+    useEffect(() => {
+        const s = new WebSocket("ws://192.168.0.131:8000/websocket");
+        s.onopen = () => {
+            setSocket(s);
+            console.log("WebSocket connection established");
+            setIsConnect(true);
+            Loop(s);
+        };
+    }, []);
+    function Loop(s) {
+        camera.current.takePictureAsync({
+          quality: 0.5, base64: true, skipProcessing: true,
+          autoFocus:false,
+            onPictureSaved: (p) => {
+                // PictureSave(p, s);
+                Loop(s);
+            },
+        });
+    }
+    function toDataUrl(url, callback) {
+        var xhr = new XMLHttpRequest();
+        xhr.onload = function () {
+            var reader = new FileReader();
+            reader.onloadend = function () {
+                callback(reader.result);
+            };
+            reader.readAsDataURL(xhr.response);
+        };
+        xhr.open("GET", url);
+        xhr.responseType = "blob";
+        xhr.send();
+    }
+
+    function PictureSave(photo, s) {
+        Resize(photo).then((resizedPhoto) => {
+            console.log(resizedPhoto);
+            toDataUrl(resizedPhoto.uri, function (myBase64) {
+                const data = {
+                    uri: myBase64,
+                };
+                if (s) {
+                    s.send(JSON.stringify(data));
+                }
+                // setTimeout(() => {
+                //   Loop()
+                // }, 50)
+                Loop(s);
+            });
+        });
+        // toDataUrl(photo.uri, function (myBase64) {
+        //     const data = {
+        //         uri: myBase64,
+        //     };
+        //     if (s) {
+        //         s.send(JSON.stringify(data));
+        //     }
+        //     // setTimeout(() => {
+        //     //   Loop()
+        //     // }, 50)
+        //    Loop(s);
+        // });
+    }
+    if (!permission) {
+        // Camera permissions are still loading
+        return <View />;
+    }
+
+    if (!permission.granted) {
+        // Camera permissions are not granted yet
+        return (
+            <View style={styles.container}>
+                <Text style={{ textAlign: "center" }}>
+                    We need your permission to show the camera
+                </Text>
+                <Button onPress={requestPermission} title="grant permission" />
+            </View>
+        );
+    }
+
+    function ToggleCameraType() {
+        setType((current) =>
+            current === CameraType.back ? CameraType.front : CameraType.back
+        );
+    }
+    return (
+        <SafeAreaView style={styles.container}>
+            <Camera
+                style={styles.camera}
+                type={type}
+                ref={camera}
+                quality={0.2}
+                unoptimized 
+                autoFocus={false}
+              
+            >
+                <View style={styles.buttonContainer}>
+                    <TouchableOpacity
+                        style={styles.button}
+                        onPress={ToggleCameraType}
+                    >
+                        <Text style={styles.text}>Flip Camera</Text>
+                    </TouchableOpacity>
+                </View>
+            </Camera>
+        </SafeAreaView>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        justifyContent: "center",
+    },
+    camera: {
+        height: 400,
+        width: 300,
+        alignSelf: "center",
+        marginTop: -200,
+    },
+    buttonContainer: {
+        flex: 1,
+        flexDirection: "row",
+        backgroundColor: "transparent",
+        margin: 64,
+    },
+    button: {
+        flex: 1,
+        alignSelf: "flex-end",
+        alignItems: "center",
+    },
+    text: {
+        fontSize: 24,
+        fontWeight: "bold",
+        color: "white",
+    },
+});
+
