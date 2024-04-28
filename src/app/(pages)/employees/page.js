@@ -1,0 +1,46 @@
+"use client";
+import React from "react";
+import { useStateContext } from "@/contexts/ContextProvider";
+
+import {
+	GridComponent,
+	ColumnsDirective,
+	ColumnDirective,
+	Page,
+	Inject,
+	Search,
+	Toolbar,
+	Sort,
+} from "@syncfusion/ej2-react-grids";
+
+import { Header } from "@/components";
+
+import { GetStudentDayTimeData, studentGridData } from "../../../Connect";
+
+const EmployeesPage = () => {
+	const { activeMenu } = useStateContext();
+
+	return (
+		<div className={activeMenu ? " md:ml-72 " : " w-full flex-2"}>
+			<div className="m-2 md:m-10 py-4 px-2 md:p-10 bg-white rounded-3xl dark:text-gray-200 dark:bg-secondary-dark-bg">
+				<Header title={"Сурагчдын цагийн хуваарь"} category={""} />
+				<GridComponent
+					dataSource={GetStudentDayTimeData()}
+					allowPaging
+					allowSorting
+					toolbar={["Search"]}
+					width={"auto"}
+				>
+					<ColumnsDirective>
+						{studentGridData.map((item, index) => (
+							<ColumnDirective key={index} {...item} />
+						))}
+					</ColumnsDirective>
+					<Inject services={[Page, Search, Toolbar, Sort]} />
+				</GridComponent>
+			</div>
+		</div>
+	);
+};
+
+export default EmployeesPage;
